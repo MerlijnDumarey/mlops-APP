@@ -17,5 +17,6 @@ spec:
       containers:
       - name: frontend
         image: frontend-image:latest 
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 80

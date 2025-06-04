@@ -7,7 +7,7 @@ import os
 
 app = FastAPI()
 
-ASSET_DIR = "/app/api/assets"
+ASSET_DIR = "api/assets"
 MODEL_PATH = os.path.join(ASSET_DIR, "model", "cyclical_convlstm_modelV9.h5")
 DATASET_PATH = os.path.join(ASSET_DIR, "dataset", "test_data_cleaned.h5")
 

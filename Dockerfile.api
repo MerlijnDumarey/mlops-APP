@@ -15,7 +15,7 @@ COPY api/ ./api/
 # Create a directory for assets if it doesn't exist (important for persistent volume)
 # This directory will be the mount point for your Persistent Volume
 # It should match the ASSET_DIR from main.py
-RUN mkdir -p /app/api/assets/model /app/api/assets/dataset 
+RUN mkdir -p /app/api/assets/model /app/api/assets/dataset
 
 # Make port 8000 available to the world outside this container
 EXPOSE 8000

@@ -16,7 +16,8 @@ spec:
     spec:
       containers:
       - name: api
-        image: api-image:latest
+        image: api-image:latest # <--- NOTE: replace 12345 with your cluster's actual registry port if different from default, or just use the image name without the domain if k3d is configured to handle it directly. Let's try `api-image:latest` first as it's typically configured to use the local images.
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8000
         volumeMounts:
