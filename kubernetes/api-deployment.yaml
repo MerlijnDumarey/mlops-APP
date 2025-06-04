@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-deployment
+  labels:
+    app: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+      - name: api
+        image: api-image:latest
+        ports:
+        - containerPort: 8000
+        volumeMounts:
+        - name: model-dataset-storage
+          # CRITICAL: This mountPath must match ASSET_DIR in api/main.py
+          mountPath: /app/api/assets # <--- MUST BE /app/api/assets (with an 's')
+      volumes:
+      - name: model-dataset-storage
+        persistentVolumeClaim:
+          claimName: model-dataset-pvc
