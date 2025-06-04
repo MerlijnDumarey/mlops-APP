@@ -1,13 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" href="/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Model Prediction</title>
-  </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
-  </body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prediction Service</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>Model Prediction Service</h1>
+        </header>
+
+        <main>
+            <div class="input-group">
+                <label for="record-select">Select Record ID:</label>
+                <select id="record-select">
+                    <option value="" disabled selected>-- Please choose an option --</option>
+                </select>
+                <button id="predict-button">Get Prediction</button>
+            </div>
+
+            <div id="result" class="hidden">
+                <h2>Prediction:</h2>
+                <p id="prediction-output"></p>
+            </div>
+
+            <div id="error" class="hidden">
+                <h2>Error:</h2>
+                <p id="error-output"></p>
+            </div>
+        </main>
+    </div>
+    <script src="main.js"></script>
+</body>
 </html>

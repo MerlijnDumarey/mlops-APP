@@ -1,0 +1,82 @@
+body {
+    font-family: Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-align: center;
+    color: #333;
+    margin: 0;
+    padding: 20px;
+    background-color: #f4f4f4;
+}
+
+#app {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    max-width: 600px;
+    margin: 50px auto;
+}
+
+h1, h2 {
+    color: #42b983;
+}
+
+.input-group {
+    margin-bottom: 25px;
+}
+
+.input-group label {
+    margin-right: 10px;
+    font-size: 18px;
+}
+
+.input-group select,
+.input-group button {
+    padding: 10px 15px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.input-group button {
+    background-color: #42b983;
+    color: white;
+    border: none;
+    margin-left: 10px;
+    transition: background-color 0.3s ease;
+}
+
+.input-group button:hover:not(:disabled) {
+    background-color: #369b71;
+}
+
+.input-group button:disabled {
+    background-color: #a0a0a0;
+    cursor: not-allowed;
+}
+
+.result, .error {
+    margin-top: 30px;
+    padding: 20px;
+    border-radius: 8px;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.result {
+    border: 1px solid #42b983;
+    background-color: #e6ffe6;
+}
+
+.error {
+    border: 1px solid #ff4d4d;
+    background-color: #ffe6e6;
+    color: #cc0000;
+}
+
+.hidden {
+    display: none;
+}
