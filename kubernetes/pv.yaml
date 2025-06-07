@@ -4,13 +4,12 @@ metadata:
   name: model-dataset-pv
 spec:
   capacity:
-    storage: 5Gi # Adjust size as needed
+    storage: 5Gi # we need a lot of space for the model and dataset (multiple gigabytes)
   volumeMode: Filesystem
   accessModes:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   hostPath:
-    # IMPORTANT: This path is on the k3d cluster's node (the Docker container).
-    # You will copy your model/dataset files to this path on the k3d node.
+    # this is for local development; in production, use a proper storage class
     path: "/mnt/k3d/data/model-dataset"
     type: DirectoryOrCreate

@@ -11,14 +11,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const fetchRecords = async () => {
         try {
-            const response = await fetch('/api/records'); // NGINX will route this
+            const response = await fetch('/api/records'); 
             if (!response.ok) {
                 const errorText = await response.text();
                 throw new Error(`Failed to fetch records: ${response.status} ${response.statusText} - ${errorText}`);
             }
             const data = await response.json();
             
-            // Clear existing options
             recordSelect.innerHTML = '<option value="" disabled selected>-- Please choose an option --</option>';
 
             if (data.record_ids && data.record_ids.length > 0) {
@@ -28,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     option.textContent = id;
                     recordSelect.appendChild(option);
                 });
-                recordSelect.value = data.record_ids[0]; // Pre-select the first record
+                recordSelect.value = data.record_ids[0]; 
                 predictButton.disabled = false;
             } else {
                 showError('No records found in the dataset.');
@@ -46,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hideElement(errorDiv);
         predictionOutput.textContent = '';
         errorOutput.textContent = '';
-        predictButton.disabled = true; // Disable during prediction
+        predictButton.disabled = true; 
 
         const selectedRecordId = recordSelect.value;
         if (!selectedRecordId) {
@@ -75,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (err) {
             showError(err.message);
         } finally {
-            predictButton.disabled = false; // Re-enable button
+            predictButton.disabled = false;
         }
     };
 
@@ -84,9 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showElement(errorDiv);
     };
 
-    // Event Listeners
     predictButton.addEventListener('click', handlePredict);
 
-    // Initial load
     fetchRecords();
 });
