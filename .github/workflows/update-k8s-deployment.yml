@@ -13,10 +13,11 @@ env:
 
 jobs:
   deploy-to-kubernetes:
-    runs-on: 
-      - self-hosted
-      - Linux
-      - ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [self-hosted, ubuntu-latest]
+    runs-on: ${{ matrix.runner }}
 
     steps:
     - name: Checkout your repository
