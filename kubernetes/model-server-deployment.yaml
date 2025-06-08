@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: model-server-deployment
+  labels:
+    app: model-server
+spec:
+  replicas: 1 
+  selector:
+    matchLabels:
+      app: model-server
+  template:
+    metadata:
+      labels:
+        app: model-server
+    spec:
+      containers:
+      - name: model-server
+        image: MODEL_SERVER_IMAGE_PLACEHOLDER # This placeholder will be replaced by the GitHub Action
+        # The image should be in the format: <registry-name>.azurecr.io/<image-name>:<tag>
+
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8501 
+
