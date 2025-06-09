@@ -1,0 +1,174 @@
+name: Handle New Model - Build & Update K8s Config
+
+on:
+  repository_dispatch:
+    types: [new-model-available]
+  workflow_dispatch:
+    inputs:
+      model_version:
+        description: 'Version of the model to deploy (e.g., 0.2.123 or 3)'
+        required: true
+        default: 'latest'
+      model_name:
+        description: 'Name of the model in Azure ML Registry'
+        required: true
+        default: 'movement-classification'
+
+env:
+  PROJECT_RESOURCE_GROUP: mlops-project
+  AZURE_ML_WORKSPACE_NAME: mlops-project-ai
+  AZURE_REGION: westeurope
+  AZURE_CONTAINER_REGISTRY_NAME: youracrname # REPLACE
+  MODEL_NAME_IN_AML: movement-classification
+  MODEL_SERVER_IMAGE_BASE_NAME: mlops-app/model-server
+  MODEL_SERVER_DOCKERFILE_PATH: Dockerfile.model_server # At root
+  MODEL_SERVER_DOCKER_CONTEXT: . # Build context is the repo root
+
+jobs:
+  build-and-update-config:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout mlops-APP repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GH_PAT_FOR_PUSH }}
+
+    - name: Login to Azure
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Install Azure ML CLI extension
+      run: |
+        az extension add --name ml --allow-preview
+        az configure --defaults group="${{ env.PROJECT_RESOURCE_GROUP }}" workspace="${{ env.AZURE_ML_WORKSPACE_NAME }}" location="${{ env.AZURE_REGION }}"
+
+    - name: Determine Model Version and Name
+      id: model_details
+      run: |
+        # ... (this part remains the same as previous correct version) ...
+        MODEL_VER_INPUT=""
+        MODEL_NAME_INPUT=""
+        if [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+          MODEL_VER_INPUT="${{ github.event.client_payload.model_version }}"
+          MODEL_NAME_INPUT="${{ github.event.client_payload.model_name }}"
+          echo "Triggered by repository_dispatch."
+        else # workflow_dispatch
+          MODEL_VER_INPUT="${{ github.event.inputs.model_version }}"
+          MODEL_NAME_INPUT="${{ github.event.inputs.model_name }}"
+          echo "Triggered by workflow_dispatch."
+        fi
+
+        if [ -z "$MODEL_NAME_INPUT" ]; then
+          MODEL_NAME_INPUT="${{ env.MODEL_NAME_IN_AML }}"
+          echo "Using model name from env: $MODEL_NAME_INPUT"
+        else
+          echo "Using model name from input: $MODEL_NAME_INPUT"
+        fi
+
+        if [ "$MODEL_VER_INPUT" == "latest" ] || [ -z "$MODEL_VER_INPUT" ]; then
+          echo "Fetching latest model version for $MODEL_NAME_INPUT from Azure ML..."
+          MODEL_VER_FETCHED=$(az ml model list --name "$MODEL_NAME_INPUT" --query "[0].version" -o tsv)
+          if [ -z "$MODEL_VER_FETCHED" ]; then
+            echo "Error: Could not fetch latest version for model $MODEL_NAME_INPUT."
+            exit 1
+          fi
+          echo "Latest model version is $MODEL_VER_FETCHED"
+          echo "model_version_resolved=$MODEL_VER_FETCHED" >> $GITHUB_OUTPUT
+        else
+          echo "Using provided model version: $MODEL_VER_INPUT"
+          echo "model_version_resolved=$MODEL_VER_INPUT" >> $GITHUB_OUTPUT
+        fi
+        echo "model_name_resolved=$MODEL_NAME_INPUT" >> $GITHUB_OUTPUT
+        RESOLVED_VERSION=$(grep model_version_resolved $GITHUB_OUTPUT | cut -d'=' -f2)
+        echo "Final model name: $MODEL_NAME_INPUT, version: $RESOLVED_VERSION"
+
+    - name: Download Model Artifact
+      id: download_model
+      run: |
+        # ... (this part remains the same as previous correct version) ...
+        MODEL_TO_DOWNLOAD_NAME="${{ steps.model_details.outputs.model_name_resolved }}"
+        MODEL_TO_DOWNLOAD_VERSION="${{ steps.model_details.outputs.model_version_resolved }}"
+        DOWNLOAD_PATH_DIR="./downloaded_model_v${MODEL_TO_DOWNLOAD_VERSION}"
+        echo "Downloading model artifact for model '$MODEL_TO_DOWNLOAD_NAME' version '$MODEL_TO_DOWNLOAD_VERSION' to $DOWNLOAD_PATH_DIR ..."
+        az ml model download \
+          --name "$MODEL_TO_DOWNLOAD_NAME" \
+          --version "$MODEL_TO_DOWNLOAD_VERSION" \
+          --download-path "$DOWNLOAD_PATH_DIR"
+
+        MODEL_FILE_FOUND=$(find "$DOWNLOAD_PATH_DIR" -type f \( -name "*.pkl" -o -name "*.h5" -o -name "*.onnx" -o -name "*.joblib" -o -name "*.pt" \) -print -quit)
+
+        if [ ! -f "$MODEL_FILE_FOUND" ]; then
+            echo "ERROR: Downloaded model file not found in $DOWNLOAD_PATH_DIR. Listing contents:"
+            ls -R "$DOWNLOAD_PATH_DIR"
+            exit 1
+        fi
+        echo "Model file found: $MODEL_FILE_FOUND"
+        echo "downloaded_model_file_path_output=$MODEL_FILE_FOUND" >> $GITHUB_OUTPUT
+
+    - name: Login to Azure Container Registry (ACR)
+      if: env.AZURE_CONTAINER_REGISTRY_NAME != ''
+      uses: azure/docker-login@v1
+      with:
+        login-server: ${{ env.AZURE_CONTAINER_REGISTRY_NAME }}.azurecr.io
+
+    - name: Build and Push Model Server Docker image to ACR
+      if: env.AZURE_CONTAINER_REGISTRY_NAME != ''
+      run: |
+        if [ ! -f "${{ env.MODEL_SERVER_DOCKERFILE_PATH }}" ]; then
+          echo "ERROR: Model Server Dockerfile not found at ${{ env.MODEL_SERVER_DOCKERFILE_PATH }}"
+          exit 1
+        fi
+
+        # Create model_serving directory if it doesn't exist (for safety)
+        mkdir -p ./model_serving
+
+        # Copy the downloaded model into the model_serving directory for Dockerfile to pick up
+        cp "${{ steps.download_model.outputs.downloaded_model_file_path_output }}" "./model_serving/model_artifact" # Updated
+
+        IMAGE_VERSION_TAG="${{ steps.model_details.outputs.model_version_resolved }}"
+        DOCKER_IMAGE_FULL_TAG="${{ env.AZURE_CONTAINER_REGISTRY_NAME }}.azurecr.io/${{ env.MODEL_SERVER_IMAGE_BASE_NAME }}:$IMAGE_VERSION_TAG"
+        LATEST_DOCKER_IMAGE_TAG="${{ env.AZURE_CONTAINER_REGISTRY_NAME }}.azurecr.io/${{ env.MODEL_SERVER_IMAGE_BASE_NAME }}:latest"
+
+        echo "Building Docker image: $DOCKER_IMAGE_FULL_TAG and $LATEST_DOCKER_IMAGE_TAG"
+        docker build -f "${{ env.MODEL_SERVER_DOCKERFILE_PATH }}" -t "$DOCKER_IMAGE_FULL_TAG" -t "$LATEST_DOCKER_IMAGE_TAG" "${{ env.MODEL_SERVER_DOCKER_CONTEXT }}"
+
+        echo "Pushing Docker image: $DOCKER_IMAGE_FULL_TAG"
+        docker push "$DOCKER_IMAGE_FULL_TAG"
+        echo "Pushing Docker image: $LATEST_DOCKER_IMAGE_TAG"
+        docker push "$LATEST_DOCKER_IMAGE_TAG"
+
+        # Clean up the copied model artifact from the model_serving directory
+        rm "./model_serving/model_artifact" # Updated
+
+    - name: Update Kubernetes model-server-deployment.yaml
+      if: env.AZURE_CONTAINER_REGISTRY_NAME != ''
+      run: |
+        # ... (this part remains the same as previous correct version) ...
+        NEW_IMAGE_FULL_PATH="${{ env.AZURE_CONTAINER_REGISTRY_NAME }}.azurecr.io/${{ env.MODEL_SERVER_IMAGE_BASE_NAME }}:${{ steps.model_details.outputs.model_version_resolved }}"
+        K8S_DEPLOYMENT_FILE="./kubernetes/model-server-deployment.yaml"
+
+        if [ ! -f "$K8S_DEPLOYMENT_FILE" ]; then
+            echo "ERROR: Kubernetes deployment file $K8S_DEPLOYMENT_FILE not found."
+            exit 1
+        fi
+
+        echo "Updating image in $K8S_DEPLOYMENT_FILE to: $NEW_IMAGE_FULL_PATH"
+        sed -i "s|image: MODEL_SERVER_IMAGE_PLACEHOLDER.*|image: ${NEW_IMAGE_FULL_PATH}|g" "$K8S_DEPLOYMENT_FILE"
+
+        echo "Contents of $K8S_DEPLOYMENT_FILE after update:"
+        cat "$K8S_DEPLOYMENT_FILE"
+
+        git config --global user.name "GitHub Actions Bot"
+        git config --global user.email "actions-bot@github.com"
+        git add "$K8S_DEPLOYMENT_FILE"
+        if git diff --staged --quiet; then
+          echo "No changes to commit in $K8S_DEPLOYMENT_FILE."
+        else
+          git commit -m "Automated: Update model-server image to $NEW_IMAGE_FULL_PATH (model ${{ steps.model_details.outputs.model_name_resolved }} v${{ steps.model_details.outputs.model_version_resolved }})"
+          git push
+          echo "Pushed updated $K8S_DEPLOYMENT_FILE to the repository."
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GH_PAT_FOR_PUSH }}

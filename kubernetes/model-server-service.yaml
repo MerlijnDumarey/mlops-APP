@@ -1,12 +1,14 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: model-server
+  name: model-server-service
+  labels:
+    app: model-server
 spec:
+  type: ClusterIP 
   selector:
     app: model-server
   ports:
-    - protocol: TCP
-      port: 8501 
-      targetPort: 8501 
-  type: ClusterIP 
+  - protocol: TCP
+    port: 80 
+    targetPort: 8080 

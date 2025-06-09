@@ -1,51 +1,58 @@
-name: Apply Kubernetes Deployments
+name: Apply Kubernetes Manifests to Local Cluster
 
 on:
   push:
     branches:
-      - main # maybe replace this with a deployment branch
+      - main 
     paths:
-      - 'kubernetes/**.yaml' 
+      - 'kubernetes/**.yaml'
+      - '.github/workflows/update-k8s-deployment.yml'
   workflow_dispatch:
-      
-
-env:
-  AKS_RESOURCE_GROUP: ${{ vars.AKS_RESOURCE_GROUP }}
-  AKS_CLUSTER_NAME: ${{ vars.AKS_CLUSTER_NAME }}
 
 jobs:
-  deploy-to-kubernetes:
+  deploy-to-local-kubernetes:
     strategy:
       fail-fast: false
       matrix:
         runner: [self-hosted, ubuntu-latest]
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }} 
 
     steps:
-    - name: Checkout your repository
+    - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Login to Azure
-      uses: azure/login@v2
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }} # must be set in the repo secrets
-
-    - name: Set up Kubeconfig for AKS
+    - name: Verify kubectl context
       run: |
-        echo "Fetching AKS credentials for cluster: ${{ env.AKS_CLUSTER_NAME }} in resource group: ${{ env.AKS_RESOURCE_GROUP }}"
-        az aks get-credentials --resource-group ${{ env.AKS_RESOURCE_GROUP }} --name ${{ env.AKS_CLUSTER_NAME }} --overwrite-existing --admin
-      env:
-        KUBECONFIG: /home/runner/.kube/config 
-
-    - name: Verify kubectl configuration
-      run: |
-        kubectl config view
+        echo "Verifying kubectl context (should point to your local K8s cluster)..."
+        kubectl config current-context
+        kubectl cluster-info
         kubectl get nodes
 
-    - name: Apply Model Server Kubernetes Deployment
+    - name: Apply PersistentVolume and PersistentVolumeClaim
       run: |
-        kubectl apply -f ./kubernetes/model-server-deployment.yaml
+        kubectl apply -f ./kubernetes/pv.yaml || echo "PV apply failed or already exists, continuing..."
+        kubectl apply -f ./kubernetes/pvc.yaml || echo "PVC apply failed or already exists, continuing..."
 
-    - name: Apply API Kubernetes Deployment
+    - name: Apply Services
       run: |
+        kubectl apply -f ./kubernetes/model-server-service.yaml
+        kubectl apply -f ./kubernetes/api-service.yaml
+        kubectl apply -f ./kubernetes/frontend-service.yaml
+        kubectl apply -f ./kubernetes/nginx-service.yaml
+
+    - name: Apply Deployments
+      run: |
+        kubectl apply -f ./kubernetes/model-server-deployment.yaml # This file is updated by the other workflow
         kubectl apply -f ./kubernetes/api-deployment.yaml
+        kubectl apply -f ./kubernetes/frontend-deployment.yaml
+        kubectl apply -f ./kubernetes/nginx-deployment.yaml
+
+    - name: Verify Deployments Rollout Status
+      run: |
+        echo "Waiting for deployments to stabilize..."
+        kubectl rollout status deployment/model-server-deployment -n default --timeout=180s
+        kubectl rollout status deployment/api -n default --timeout=180s
+        kubectl rollout status deployment/frontend-deployment -n default --timeout=180s
+        kubectl rollout status deployment/nginx-deployment -n default --timeout=180s
+        echo "Current pod status:"
+        kubectl get pods -n default

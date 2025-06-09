@@ -16,10 +16,29 @@ spec:
     spec:
       containers:
       - name: model-server
-        image: MODEL_SERVER_IMAGE_PLACEHOLDER # This placeholder will be replaced by the GitHub Action
-        # The image should be in the format: <registry-name>.azurecr.io/<image-name>:<tag>
 
-        imagePullPolicy: Always
+        image: MODEL_SERVER_IMAGE_PLACEHOLDER 
+        imagePullPolicy: Always 
         ports:
-        - containerPort: 8501 
-
+        - containerPort: 8080
+        Optional: Liveness and Readiness Probes
+        livenessProbe:
+          httpGet:
+            path: /health 
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready 
+            port: 8080
+          initialDelaySeconds: 15
+          periodSeconds: 5
+        Optional: Resource requests and limits
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
