@@ -10,6 +10,6 @@ spec:
     - ReadWriteOnce
   persistentVolumeReclaimPolicy: Retain
   hostPath:
-    # this is for local development; in production, use a proper storage class
+    # this is for local development, in production, use a proper storage class
     path: "/mnt/k3d/data/model-dataset"
     type: DirectoryOrCreate
