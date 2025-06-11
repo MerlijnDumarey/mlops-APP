@@ -1,8 +1,7 @@
 fastapi
 pandas
 tensorflow==2.6.0
-uvicorn[standard]
-typing_extensions>=4.0.0
+uvicorn==0.13.4
 h5py
 azure-storage-blob
 azure-identity 
