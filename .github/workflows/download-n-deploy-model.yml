@@ -87,7 +87,7 @@ jobs:
       uses: docker/build-push-action@v5.3.0
       with:
         context: .
-        file: ./Dockerfile.model
+        file: ./Dockerfile.api
         push: true
         tags: ${{ steps.docker-meta-data.outputs.tags }}
 
@@ -114,8 +114,8 @@ jobs:
 
     - name: Deploy to Kubernetes
       run: |
-        kubectl apply -f k8s/deployment.yaml
-        kubectl apply -f k8s/service.yaml
+        kubectl apply -f kubernetes/api-deployment.yaml
+        kubectl apply -f kubernetes/api-service.yaml
 
     - name: Force rollout
       run: |
