@@ -63,11 +63,6 @@ jobs:
     runs-on: [self-hosted, Linux]
     
     steps:
-    - name: Create k3d cluster with loadbalancer ports
-      run: |
-        k3d cluster delete k3s-default || true
-        k3d cluster create k3s-default --port 80:80@loadbalancer --port 443:443@loadbalancer --k3s-arg "--disable=traefik@server:0"
-
     - name: Download model artifact
       uses: actions/download-artifact@v4.1.7
       with:
