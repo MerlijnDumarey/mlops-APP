@@ -1,9 +1,10 @@
 fastapi
 pandas
-tensorflow==2.6.0
-uvicorn==0.13.4
+tensorflow==2.10.0
+uvicorn==0.20.0
+typing_extensions==4.7.1
 h5py
 azure-storage-blob
-azure-identity 
+azure-identity
 numpy
 python-multipart
