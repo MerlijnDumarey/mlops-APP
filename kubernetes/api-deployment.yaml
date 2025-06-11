@@ -18,13 +18,6 @@ spec:
       - name: api
 
         image: merlijn123/mlops-movement-classification-ai:main
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 8000
-        volumeMounts:
-        - name: model-dataset-storage
-          mountPath: /app/api/assets 
-      volumes:
-      - name: model-dataset-storage
-        persistentVolumeClaim:
-          claimName: model-dataset-pvc
