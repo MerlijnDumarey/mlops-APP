@@ -5,7 +5,7 @@ import os
 
 app = FastAPI()
 
-MODEL_DIR = "./model"
+MODEL_DIR = "./model/movement-classification/movement-classification/INPUT_model_path/movement-convlstm/"
 MODEL_FILE = None
 model = None
 
