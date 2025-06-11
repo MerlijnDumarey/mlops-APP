@@ -1,71 +1,47 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const recordSelect = document.getElementById('record-select');
+    const fileInput = document.getElementById('file-input');
     const predictButton = document.getElementById('predict-button');
+    const checkModelButton = document.getElementById('check-model-button');
     const resultDiv = document.getElementById('result');
     const predictionOutput = document.getElementById('prediction-output');
     const errorDiv = document.getElementById('error');
     const errorOutput = document.getElementById('error-output');
+    const modelStatusDiv = document.getElementById('model-status');
+    const modelStatusOutput = document.getElementById('model-status-output');
 
     const showElement = (element) => element.classList.remove('hidden');
     const hideElement = (element) => element.classList.add('hidden');
-
-    const fetchRecords = async () => {
-        try {
-            const response = await fetch('/api/records'); 
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Failed to fetch records: ${response.status} ${response.statusText} - ${errorText}`);
-            }
-            const data = await response.json();
-            
-            recordSelect.innerHTML = '<option value="" disabled selected>-- Please choose an option --</option>';
-
-            if (data.record_ids && data.record_ids.length > 0) {
-                data.record_ids.forEach(id => {
-                    const option = document.createElement('option');
-                    option.value = id;
-                    option.textContent = id;
-                    recordSelect.appendChild(option);
-                });
-                recordSelect.value = data.record_ids[0]; 
-                predictButton.disabled = false;
-            } else {
-                showError('No records found in the dataset.');
-                predictButton.disabled = true;
-            }
-        } catch (err) {
-            console.error('Error fetching records:', err);
-            showError(`Could not load record IDs: ${err.message}`);
-            predictButton.disabled = true;
-        }
-    };
 
     const handlePredict = async () => {
         hideElement(resultDiv);
         hideElement(errorDiv);
         predictionOutput.textContent = '';
         errorOutput.textContent = '';
-        predictButton.disabled = true; 
+        predictButton.disabled = true;
 
-        const selectedRecordId = recordSelect.value;
-        if (!selectedRecordId) {
-            showError('Please select a record ID.');
+        const file = fileInput.files[0];
+        if (!file) {
+            showError('Please select a file to upload.');
             predictButton.disabled = false;
             return;
         }
 
+        const formData = new FormData();
+        formData.append('file', file);
+
         try {
             const response = await fetch('/api/predict', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ record_id: selectedRecordId }),
+                body: formData,
             });
 
             if (!response.ok) {
-                const errData = await response.json();
-                throw new Error(errData.detail || 'Prediction failed.');
+                let errMsg = 'Prediction failed.';
+                try {
+                    const errData = await response.json();
+                    errMsg = errData.detail || errMsg;
+                } catch {}
+                throw new Error(errMsg);
             }
 
             const data = await response.json();
@@ -78,12 +54,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    const handleCheckModel = async () => {
+        hideElement(modelStatusDiv);
+        modelStatusOutput.textContent = '';
+        try {
+            const response = await fetch('/api/health');
+            if (!response.ok) throw new Error('Could not check model status.');
+            const data = await response.json();
+            if (data.model_loaded) {
+                modelStatusOutput.textContent = `Model loaded: ${data.model_file}`;
+            } else {
+                modelStatusOutput.textContent = 'Model is NOT loaded.';
+            }
+            showElement(modelStatusDiv);
+        } catch (err) {
+            modelStatusOutput.textContent = err.message;
+            showElement(modelStatusDiv);
+        }
+    };
+
     const showError = (message) => {
-        errorOutput.textContent = message;
+        if (message.includes("Model is not available")) {
+            errorOutput.textContent = "The prediction model is currently unavailable. Please contact the administrator or try again later.";
+        } else {
+            errorOutput.textContent = message;
+        }
         showElement(errorDiv);
     };
 
     predictButton.addEventListener('click', handlePredict);
-
-    fetchRecords();
+    checkModelButton.addEventListener('click', handleCheckModel);
 });

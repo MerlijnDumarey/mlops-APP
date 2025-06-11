@@ -1,11 +1,7 @@
 fastapi
-uvicorn
 pandas
 tensorflow
-h5py  
-fastapi
 uvicorn[standard]
-tensorflow
 h5py
 azure-storage-blob
 azure-identity 

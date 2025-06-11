@@ -14,11 +14,15 @@
 
         <main>
             <div class="input-group">
-                <label for="record-select">Select Record ID:</label>
-                <select id="record-select">
-                    <option value="" disabled selected>-- Please choose an option --</option>
-                </select>
+                <label for="file-input">Upload Input File:</label>
+                <input type="file" id="file-input" />
                 <button id="predict-button">Get Prediction</button>
+                <button id="check-model-button">Check Model Status</button>
+            </div>
+
+            <div id="model-status" class="hidden">
+                <h2>Model Status:</h2>
+                <p id="model-status-output"></p>
             </div>
 
             <div id="result" class="hidden">

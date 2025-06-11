@@ -1,45 +1,47 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from typing import Any
-import requests
-import os # For environment variables
+from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi.responses import JSONResponse
+from tensorflow.keras.models import load_model
+import os
 
 app = FastAPI()
 
-MODEL_SERVER_INTERNAL_URL = os.getenv("MODEL_SERVER_URL", "http://model-server-service:80/predict")
+MODEL_DIR = "./app/model"
+MODEL_FILE = None
+model = None
 
+# Find the first .h5 file in the model directory
+for fname in os.listdir(MODEL_DIR):
+    if fname.endswith(".h5"):
+        MODEL_FILE = os.path.join(MODEL_DIR, fname)
+        break
 
-class ApiPredictRequest(BaseModel):
-    data: Any 
+if MODEL_FILE:
 
-class ApiPredictResponse(BaseModel):
-   
-    prediction_result: Any
+    model = load_model(MODEL_FILE)
 
-
-@app.post("/predict", response_model=ApiPredictResponse)
-async def api_predict(request: ApiPredictRequest):
-    payload_to_model_server = request.data
-
+@app.post("/predict")
+async def predict(file: UploadFile = File(...)):
+    if model is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Model is not available."
+        )
     try:
-        print(f"Sending payload to model server: {payload_to_model_server}")
-        response = requests.post(MODEL_SERVER_INTERNAL_URL, json=payload_to_model_server)
-        response.raise_for_status() 
-        
-        model_server_response_json = response.json()
-        
-        prediction_from_model = model_server_response_json.get("prediction")
-
-        return {"prediction_result": prediction_from_model}
-
-    except requests.exceptions.RequestException as e:
-        print(f"Error calling model server: {e}")
-        raise HTTPException(status_code=503, detail=f"Model service unavailable or returned an error: {e}")
+        contents = await file.read()
+        import numpy as np
+        from io import BytesIO
+        X = np.load(BytesIO(contents))
+        prediction = model.predict(X)
+        if hasattr(prediction, "tolist"):
+            prediction = prediction.tolist()
+        return JSONResponse(content={"prediction": prediction})
     except Exception as e:
-        print(f"Unexpected error during prediction call: {e}")
-        raise HTTPException(status_code=500, detail=f"Prediction failed due to an internal error: {e}")
-    
+        raise HTTPException(status_code=500, detail=f"Prediction failed: {e}")
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "model_loaded": model is not None,
+        "model_file": MODEL_FILE if model is not None else None
+    }
