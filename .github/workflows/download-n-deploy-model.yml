@@ -87,6 +87,7 @@ jobs:
       uses: docker/build-push-action@v5.3.0
       with:
         context: .
+        file: ./Dockerfile.model
         push: true
         tags: ${{ steps.docker-meta-data.outputs.tags }}
 
