@@ -1,6 +1,6 @@
 fastapi
 pandas
-tensorflow
+tensorflow==2.6.0
 uvicorn[standard]
 h5py
 azure-storage-blob
