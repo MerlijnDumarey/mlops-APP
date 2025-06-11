@@ -5,7 +5,7 @@ import os
 
 app = FastAPI()
 
-MODEL_DIR = "./app/model"
+MODEL_DIR = "./model"
 MODEL_FILE = None
 model = None
 
