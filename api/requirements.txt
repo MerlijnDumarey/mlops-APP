@@ -6,3 +6,4 @@ h5py
 azure-storage-blob
 azure-identity 
 numpy
+python-multipart
