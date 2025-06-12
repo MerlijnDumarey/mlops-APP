@@ -1,0 +1,77 @@
+name: Deploy FrontEnd
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'kubernetes/frontend-**.yaml'
+      - 'kubernetes/nginx-**.yaml'
+      - 'frontend/*'
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, Linux]
+    steps:
+    - name: Docker -- Gather Tags
+      id: docker-meta-data
+      uses: docker/metadata-action@v5.5.1
+      with:
+        images: merlijn123/frontend-image
+        tags: |
+          type=ref,event=branch
+          type=sha
+    - name: Docker -- Login to Docker Hub
+      uses: docker/login-action@v3.2.0
+      with:
+        username: ${{ secrets.DOCKER_HUB_USERNAME }}
+        password: ${{ secrets.DOCKER_HUB_PASSWORD }}
+
+    - name: Docker Build and push
+      uses: docker/build-push-action@v5.3.0
+      with:
+        context: .
+        file: ./Dockerfile.frontend
+        push: true
+        tags: ${{ steps.docker-meta-data.outputs.tags }}
+
+    - name: Install kubectl
+      run: |
+        KUBECTL_VERSION="v1.33.1"
+        echo "Installing kubectl $KUBECTL_VERSION"
+        
+        curl -LO "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+        chmod +x kubectl
+        mkdir -p $HOME/.local/bin
+        mv kubectl $HOME/.local/bin/
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+    
+    - name: Verify kubectl
+      run: kubectl version --client
+
+    - name: Set up kubeconfig
+      run: |
+        mkdir -p ~/.kube
+        echo "${{ secrets.KUBECONFIG_DATA }}" | base64 -d > ~/.kube/config
+        chmod 600 ~/.kube/config
+    - name: Deploy frontend to Kubernetes
+      run: |
+        kubectl apply -f kubernetes/frontend-deployment.yaml
+        kubectl apply -f kubernetes/frontend-service.yaml
+    - name: Force rollout frontend
+      run: |
+        kubectl patch deployment frontend-deployment \
+          -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"restartedAt\":\"$(date +%s)\"}}}}}"
+    - name: Deploy nginx to Kubernetes
+      run: |
+        kubectl apply -f kubernetes/nginx-deployment.yaml
+        kubectl apply -f kubernetes/nginx-service.yaml
+    - name: Force rollout nginx
+      run: |
+        kubectl patch deployment nginx-deployment \
+          -p "{\"spec\":{\"template\":{\"metadata\":{\"annotations\":{\"restartedAt\":\"$(date +%s)\"}}}}}"
+    - name: Verify rollout frontend
+      run: kubectl rollout status deployment/frontend-deployment --timeout=180s
+    - name: Verify rollout nginx
+      run: kubectl rollout status deployment/nginx-deployment --timeout=180s
