@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: frontend
-        image: frontend-image:latest 
-        imagePullPolicy: IfNotPresent
+        image: merlijn123/frontend-image:latest 
+        imagePullPolicy: Always
         ports:
         - containerPort: 80
