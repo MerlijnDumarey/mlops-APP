@@ -1,6 +1,15 @@
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.responses import JSONResponse
 from tensorflow.keras.models import load_model
+import h5py
+import numpy as np
+from io import BytesIO
+from utils import (
+    h5_to_dataframe,
+    flag_joint_missingness,
+    impute_missingness,
+    dataframe_to_h5
+)
 import os
 
 app = FastAPI()
@@ -28,10 +37,22 @@ async def predict(file: UploadFile = File(...)):
         )
     try:
         contents = await file.read()
-        import numpy as np
-        from io import BytesIO
-        X = np.load(BytesIO(contents))
-        prediction = model.predict(X)
+
+        file_bytes_io = BytesIO(contents)
+
+        with h5py.File(file_bytes_io, 'r') as f:
+            X = f['data'][:]
+
+        df = h5_to_dataframe(X)
+        df_missing_flagged = flag_joint_missingness(df, target_cols=df.columns)
+        df_imputed = impute_missingness(df_missing_flagged)
+
+        X_cleaned = dataframe_to_h5(df_imputed)
+        X_reshaped = X_cleaned.reshape((-1, 15, 4, 25, 1))
+
+
+
+        prediction = model.predict(X_reshaped)
         if hasattr(prediction, "tolist"):
             prediction = prediction.tolist()
         return JSONResponse(content={"prediction": prediction})
